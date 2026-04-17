@@ -118,6 +118,14 @@
     #result-box .word-reveal { font-size: 1.6rem; font-weight: 700; letter-spacing: 4px; color: #f9a8c9; }
     #next-word-timer { font-size: 1rem; font-family: monospace; color: #fff; }
 
+    .game-ended #instructions,
+    .game-ended #keyboard { display: none; }
+
+    .game-ended #result-box {
+      display: flex;
+      margin-top: 12px;
+    }
+
     #instructions {
       padding: 16px 10px;
       border-top: 1px solid #5c2d45;
@@ -1714,7 +1722,9 @@ function shakeRow(rowIndex) {
 function endGame(won) {
   gameOver = true;
   const box = document.getElementById('result-box');
+  document.getElementById('container').classList.add('game-ended');
   box.style.display = 'flex';
+  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   document.getElementById('result-title').textContent = won
     ? ['WOW! U IS SO SMARTY PANTIES!', 'OMG U IS SO SMARTY PANTIES!!', 'YAS! U IS SMARTY PANTIES!', 'WOWWW SMARTY PANTIES STRIKES AGAIN!', 'OK OK U IS STILL SMARTY PANTIES!', 'PHEW... STILL SMARTY PANTIES!'][currentRow - 1]
     : ['ABSOLUTE DISGRACE.', 'DID U EVEN TRY??', 'EMBARRASSING HONESTLY.', 'JUST DELETE THE APP.', 'WOW. JUST... WOW.', 'BACK TO SCHOOL U GO.'][Math.floor(Math.random() * 6)];

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wordz with Sirnik</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #1a0812;
+      color: #fff;
+      min-height: 100vh;
+    }
+
+    #container {
+      width: 350px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    header {
+      width: 100%;
+      padding: 16px;
+      border-bottom: 1px solid #5c2d45;
+      text-align: center;
+    }
+
+    header h1 { font-size: 2rem; font-weight: 700; letter-spacing: 4px; color: #f9a8c9; }
+    header p  { font-size: 0.8rem; color: #c9849a; margin-top: 4px; }
+
+    #message {
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    #board {
+      display: grid;
+      grid-template-rows: repeat(6, 1fr);
+      gap: 5px;
+      padding: 10px;
+      width: 100%;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 5px;
+    }
+
+    .tile {
+      width: 100%;
+      aspect-ratio: 1;
+      border: 2px solid #5c2d45;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      transition: border-color 0.1s;
+      user-select: none;
+    }
+
+    .tile.filled  { border-color: #9e5070; animation: pop 0.1s ease; }
+    .tile.correct { background: #ffffff; border-color: #ffffff; color: #1a0812; }
+    .tile.present { background: #ff8c00; border-color: #ff8c00; color: #fff; }
+    .tile.absent  { background: #4a1a35; border-color: #4a1a35; color: #fff; }
+
+    .tile.flip {
+      animation: flip 0.5s ease forwards;
+    }
+
+    @keyframes pop {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes flip {
+      0%   { transform: rotateX(0deg); }
+      50%  { transform: rotateX(90deg); }
+      100% { transform: rotateX(0deg); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-4px); }
+      40%, 80% { transform: translateX(4px); }
+    }
+
+    .row.shake { animation: shake 0.4s ease; }
+
+
+    #result-box {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 20px;
+      background: #2a0f1e;
+      border: 1px solid #5c2d45;
+      border-radius: 8px;
+      margin: 10px;
+      text-align: center;
+    }
+
+    #result-box h2 { font-size: 1.4rem; }
+    #result-box p  { color: #c9849a; font-size: 0.9rem; }
+    #result-box .word-reveal { font-size: 1.6rem; font-weight: 700; letter-spacing: 4px; color: #f9a8c9; }
+    #next-word-timer { font-size: 1rem; font-family: monospace; color: #fff; }
+
+    #instructions {
+      padding: 16px 10px;
+      border-top: 1px solid #5c2d45;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      color: #c9849a;
+    }
+
+    .legend-swatch {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+<div id="container">
+
+<header>
+  <h1>WORDZ WITH SIRNIK</h1>
+  <p id="date-label"></p>
+</header>
+
+<div id="message"></div>
+<div id="board"></div>
+
+<div id="instructions">
+  <div class="legend-item">
+    <div class="legend-swatch" style="background:#ffffff;"></div>
+    <span>Right letter, right spot</span>
+  </div>
+  <div class="legend-item">
+    <div class="legend-swatch" style="background:#ff8c00;"></div>
+    <span>Right letter, wrong spot</span>
+  </div>
+  <div class="legend-item">
+    <div class="legend-swatch" style="background:#4a1a35; border: 1px solid #5c2d45;"></div>
+    <span>Letter not in the word</span>
+  </div>
+</div>
+
+<div id="result-box">
+  <h2 id="result-title"></h2>
+  <p id="result-subtitle"></p>
+  <div class="word-reveal" id="result-word"></div>
+  <p>Next word in <span id="next-word-timer">--:--:--</span></p>
+</div>
+
+</div><!-- end #container -->
+
+<script>
+const WORDS = [
+  "crane","shine","blast","flute","groan","plant","ember","civic","blend","crave",
+  "brisk","choke","plume","trout","gleam","stomp","crimp","knave","swirl","blaze",
+  "froth","squad","snare","crisp","prowl","gripe","cleft","quote","brood","speck",
+  "wrung","flank","tryst","notch","slunk","grout","kneel","blurt","cramp","stave",
+  "clung","froze","plait","snout","gruff","clamp","swamp","prune","twirl","bloke",
+  "frisk","cloak","stoic","gruel","knack","sniff","plank","creak","blunt","stoke",
+  "grasp","clove","flint","brawn","crimp","snoop","graze","plush","clout","frond",
+  "swine","brute","cleft","knoll","plead","stomp","croon","bliss","grout","flake",
+  "snare","prism","clunk","broth","swoop","grind","plane","stunt","crave","bleat",
+  "froth","clown","snide","groan","pleat","cruse","blend","fleck","stoic","prong",
+  "swung","brood","clamp","knave","plumb","gripe","stave","crisp","blank","froze",
+  "flute","brisk","cleft","snout","gruff","plume","cramp","bloke","swirl","trout",
+  "crimp","kneel","blurt","frisk","stomp","graze","cloak","prune","twirl","blaze",
+  "sniff","plank","creak","blunt","stoke","grasp","clove","flint","brawn","snoop",
+  "gruel","plush","clout","frond","swine","brute","knoll","plead","croon","bliss",
+  "flake","prism","clunk","broth","swoop","grind","stunt","bleat","clown","snide",
+  "pleat","blend","fleck","prong","swung","brood","knave","plumb","stave","blank",
+  "found","light","brave","clean","dream","earth","faith","flame","grace","heart",
+  "house","juice","knife","lemon","light","money","music","night","ocean","olive",
+  "paint","peace","pearl","piano","place","plant","plate","pride","prime","prize",
+  "queen","quest","quick","quiet","quite","radio","reach","realm","rouge","round",
+  "royal","ruler","saint","salve","scale","scene","score","scout","sense","serve",
+  "seven","shade","share","sharp","sheep","sheet","shelf","shell","shift","shore",
+  "short","shout","sight","sigma","since","skill","skull","slate","slice","slide",
+  "slope","smart","smell","smile","smoke","snake","solar","solid","solve","sonic",
+  "sound","south","space","spark","speak","speed","spell","spend","spice","spill",
+  "spine","spite","split","spoke","spoon","sport","spray","stack","staff","stage",
+  "stain","stale","stall","stand","stark","start","state","stays","steam","steel",
+  "steep","steer","stern","stick","stiff","still","stock","stone","stood","store",
+  "storm","story","stove","strap","straw","stray","strip","stuck","study","stuff",
+  "style","sugar","suite","super","surge","swear","sweep","sweet","swept","swift",
+  "swing","sword","sworn","syrup","table","taste","teach","teeth","thank","their",
+  "theme","there","these","thick","thing","think","third","thorn","those","three",
+  "threw","throw","thumb","tiger","tight","timer","tired","title","today","token",
+  "topic","total","touch","tough","towel","tower","track","trade","trail","train",
+  "trait","tramp","trash","treat","trees","trend","trick","tried","troop","truck",
+  "truly","trunk","trust","truth","tumor","tuner","tunic","tweak","twice","twist",
+  "under","unite","until","upper","upset","urban","usage","usher","usual","utter",
+  "valid","value","vault","verse","video","vigor","viral","visit","vital","vivid",
+  "voice","voter","vowel","wager","waste","watch","water","weave","wedge","weigh",
+  "weird","whale","wheat","wheel","where","which","while","white","whole","whose",
+  "wield","witch","woman","world","worry","worse","worst","worth","would","wound",
+  "wrath","wrist","wrong","yacht","yearn","yield","young","youth","zebra","zonal"
+];
+
+const VALID_WORDS = new Set(WORDS);
+
+function getDailyWord() {
+  const epoch = new Date('2024-01-01');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.floor((today - epoch) / 86400000);
+  return WORDS[days % WORDS.length].toUpperCase();
+}
+
+function getDateLabel() {
+  return new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+const TARGET = getDailyWord();
+const SAVE_KEY = 'wordle_' + new Date().toISOString().slice(0, 10);
+
+let board = [];
+let currentRow = 0;
+let currentCol = 0;
+let gameOver = false;
+let keyStates = {};
+
+function initBoard() {
+  const boardEl = document.getElementById('board');
+  boardEl.innerHTML = '';
+  board = [];
+  for (let r = 0; r < 6; r++) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.id = 'row-' + r;
+    const tiles = [];
+    for (let c = 0; c < 5; c++) {
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.id = `tile-${r}-${c}`;
+      row.appendChild(tile);
+      tiles.push(tile);
+    }
+    boardEl.appendChild(row);
+    board.push(tiles);
+  }
+}
+
+
+function handleKey(key) {
+  if (gameOver) return;
+  if (key === '⌫' || key === 'Backspace') {
+    deleteLetter();
+  } else if (key === 'Enter') {
+    submitGuess();
+  } else if (/^[A-Za-z]$/.test(key)) {
+    addLetter(key.toUpperCase());
+  }
+}
+
+function addLetter(letter) {
+  if (currentCol >= 5) return;
+  const tile = board[currentRow][currentCol];
+  tile.textContent = letter;
+  tile.classList.add('filled');
+  currentCol++;
+}
+
+function deleteLetter() {
+  if (currentCol <= 0) return;
+  currentCol--;
+  const tile = board[currentRow][currentCol];
+  tile.textContent = '';
+  tile.classList.remove('filled');
+}
+
+function showMessage(msg, duration = 1800) {
+  const el = document.getElementById('message');
+  el.textContent = msg;
+  if (duration) setTimeout(() => { el.textContent = ''; }, duration);
+}
+
+function submitGuess() {
+  if (currentCol < 5) {
+    showMessage('Not enough letters');
+    shakeRow(currentRow);
+    return;
+  }
+
+  const guess = board[currentRow].map(t => t.textContent).join('');
+
+  if (!VALID_WORDS.has(guess.toLowerCase())) {
+    showMessage('Not in word list');
+    shakeRow(currentRow);
+    return;
+  }
+
+  const result = score(guess, TARGET);
+  flipRow(currentRow, result, guess);
+
+  result.forEach((state, i) => {
+    const letter = guess[i];
+    const priority = { correct: 3, present: 2, absent: 1 };
+    if ((priority[state] || 0) > (priority[keyStates[letter]] || 0)) {
+      keyStates[letter] = state;
+    }
+  });
+
+  const won = result.every(r => r === 'correct');
+  currentRow++;
+  currentCol = 0;
+
+  if (won) {
+    setTimeout(() => endGame(true), 1800);
+  } else if (currentRow >= 6) {
+    setTimeout(() => endGame(false), 1800);
+  }
+}
+
+function score(guess, target) {
+  const result = Array(5).fill('absent');
+  const targetArr = target.split('');
+  const used = Array(5).fill(false);
+
+  for (let i = 0; i < 5; i++) {
+    if (guess[i] === target[i]) {
+      result[i] = 'correct';
+      used[i] = true;
+    }
+  }
+  for (let i = 0; i < 5; i++) {
+    if (result[i] === 'correct') continue;
+    for (let j = 0; j < 5; j++) {
+      if (!used[j] && guess[i] === targetArr[j]) {
+        result[i] = 'present';
+        used[j] = true;
+        break;
+      }
+    }
+  }
+  return result;
+}
+
+function flipRow(rowIndex, results, guess) {
+  const tiles = board[rowIndex];
+  tiles.forEach((tile, i) => {
+    setTimeout(() => {
+      tile.classList.add('flip');
+      setTimeout(() => {
+        tile.classList.remove('filled');
+        tile.classList.add(results[i]);
+      }, 250);
+    }, i * 300);
+  });
+}
+
+function shakeRow(rowIndex) {
+  const row = document.getElementById('row-' + rowIndex);
+  row.classList.add('shake');
+  setTimeout(() => row.classList.remove('shake'), 400);
+}
+
+
+function endGame(won) {
+  gameOver = true;
+  const box = document.getElementById('result-box');
+  box.style.display = 'flex';
+  document.getElementById('result-title').textContent = won
+    ? ['WOW! U IS SO SMARTY PANTIES!', 'OMG U IS SO SMARTY PANTIES!!', 'YAS! U IS SMARTY PANTIES!', 'WOWWW SMARTY PANTIES STRIKES AGAIN!', 'OK OK U IS STILL SMARTY PANTIES!', 'PHEW... STILL SMARTY PANTIES!'][currentRow - 1]
+    : ['ABSOLUTE DISGRACE.', 'DID U EVEN TRY??', 'EMBARRASSING HONESTLY.', 'JUST DELETE THE APP.', 'WOW. JUST... WOW.', 'BACK TO SCHOOL U GO.'][Math.floor(Math.random() * 6)];
+  document.getElementById('result-subtitle').textContent = won
+    ? `You got it in ${currentRow} ${currentRow === 1 ? 'try' : 'tries'}!`
+    : 'The word was:';
+  document.getElementById('result-word').textContent = TARGET;
+  startCountdown();
+}
+
+function startCountdown() {
+  function update() {
+    const now = new Date();
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0);
+    const diff = midnight - now;
+    const h = String(Math.floor(diff / 3600000)).padStart(2, '0');
+    const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
+    const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+    document.getElementById('next-word-timer').textContent = `${h}:${m}:${s}`;
+  }
+  update();
+  setInterval(update, 1000);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  handleKey(e.key === 'Backspace' ? 'Backspace' : e.key);
+});
+
+document.getElementById('date-label').textContent = getDateLabel();
+initBoard();
+</script>
+</body>
+</html>

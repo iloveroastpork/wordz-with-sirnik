@@ -126,6 +126,56 @@
       gap: 8px;
     }
 
+    #keyboard {
+      padding: 10px 8px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    .keyboard-row {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .key {
+      min-width: 0;
+      height: 56px;
+      border: 0;
+      border-radius: 4px;
+      background: #6e4055;
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 0;
+      flex: 1;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.05s ease;
+    }
+
+    .key:active {
+      transform: scale(0.97);
+    }
+
+    .key.wide {
+      flex: 1.45;
+      font-size: 0.72rem;
+      letter-spacing: 0.03em;
+    }
+
+    .key.backspace {
+      font-size: 1.15rem;
+    }
+
+    .key.correct { background: #ffffff; color: #1a0812; }
+    .key.present { background: #ff8c00; color: #fff; }
+    .key.absent { background: #4a1a35; color: #fff; }
+
     .legend-item {
       display: flex;
       align-items: center;
@@ -139,6 +189,30 @@
       height: 24px;
       border-radius: 4px;
       flex-shrink: 0;
+    }
+
+    @media (max-width: 420px) {
+      #container {
+        width: min(100%, 390px);
+      }
+
+      header h1 {
+        font-size: 1.65rem;
+        letter-spacing: 3px;
+      }
+
+      .key {
+        height: 50px;
+        font-size: 0.82rem;
+      }
+
+      .key.wide {
+        font-size: 0.68rem;
+      }
+
+      .key.backspace {
+        font-size: 1rem;
+      }
     }
   </style>
 </head>
@@ -168,6 +242,8 @@
     <span>Letter not in the word</span>
   </div>
 </div>
+
+<div id="keyboard" aria-label="On-screen keyboard"></div>
 
 <div id="result-box">
   <h2 id="result-title"></h2>
@@ -251,7 +327,7 @@ const WORDS = [
   "forge", "forgo", "forte", "forth", "forty", "forum", "found", "foyer", "frail", "frame", "frank", "fraud",
   "freak", "freed", "freer", "fresh", "friar", "fried", "frill", "frisk", "fritz", "frock", "frond", "front",
   "frost", "froth", "frown", "froze", "fruit", "fudge", "fugue", "fully", "fungi", "funky", "funny", "furor",
-  "furry", "fussy", "fuzzy", "gaffe", "gaily", "gamer", "gamma", "gamut", "gassy", "gaudy", "gauge", "gaunt",
+  "furry", "fussy", "fuzzy", "gaffe", "gaily", "gamer", "gamma", "gamut", "gassy", "panda", "gauge", "gaunt",
   "gauze", "gavel", "gawky", "gayer", "gayly", "gazer", "gecko", "geeky", "geese", "genie", "genre", "ghost",
   "ghoul", "giant", "giddy", "gipsy", "girly", "girth", "given", "giver", "glade", "gland", "glare", "glass",
   "glaze", "gleam", "glean", "glide", "glint", "gloat", "globe", "gloom", "glory", "gloss", "glove", "glyph",
@@ -1446,6 +1522,11 @@ let currentRow = 0;
 let currentCol = 0;
 let gameOver = false;
 let keyStates = {};
+const KEYBOARD_ROWS = [
+  ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "Backspace"],
+  ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
+  ["Z", "X", "C", "V", "B", "N", "M", "Enter"]
+];
 
 function initBoard() {
   const boardEl = document.getElementById('board');
@@ -1466,6 +1547,52 @@ function initBoard() {
     boardEl.appendChild(row);
     board.push(tiles);
   }
+}
+
+function initKeyboard() {
+  const keyboardEl = document.getElementById('keyboard');
+  keyboardEl.innerHTML = '';
+
+  KEYBOARD_ROWS.forEach(keys => {
+    const row = document.createElement('div');
+    row.className = 'keyboard-row';
+
+    keys.forEach(key => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'key';
+      button.dataset.key = key;
+
+      if (key === 'Enter') {
+        button.classList.add('wide');
+        button.textContent = 'Enter';
+        button.setAttribute('aria-label', 'Enter');
+      } else if (key === 'Backspace') {
+        button.classList.add('wide', 'backspace');
+        button.innerHTML = '&#9003;';
+        button.setAttribute('aria-label', 'Backspace');
+      } else {
+        button.textContent = key;
+        button.setAttribute('aria-label', key);
+      }
+
+      button.addEventListener('click', () => handleKey(key));
+      row.appendChild(button);
+    });
+
+    keyboardEl.appendChild(row);
+  });
+}
+
+function updateKeyboard() {
+  document.querySelectorAll('.key').forEach(button => {
+    const key = button.dataset.key;
+    const state = keyStates[key];
+    button.classList.remove('correct', 'present', 'absent');
+    if (state) {
+      button.classList.add(state);
+    }
+  });
 }
 
 
@@ -1527,6 +1654,7 @@ function submitGuess() {
       keyStates[letter] = state;
     }
   });
+  updateKeyboard();
 
   const won = result.every(r => r === 'correct');
   currentRow++;
@@ -1619,6 +1747,7 @@ document.addEventListener('keydown', e => {
 
 document.getElementById('date-label').textContent = getDateLabel();
 initBoard();
+initKeyboard();
 </script>
 </body>
 </html>
